@@ -24,6 +24,7 @@ import (
 	"github.com/krazzer00/anyroute/internal/netx"
 	"github.com/krazzer00/anyroute/internal/profiles"
 	"github.com/krazzer00/anyroute/internal/secrets"
+	"github.com/krazzer00/anyroute/internal/update"
 )
 
 var version = "dev"
@@ -40,8 +41,27 @@ func main() {
 	profile := flag.String("profile", "", "файл профиля маршрутизации (JSON из %APPDATA%\\AnyRoute\\profiles)")
 	hold := flag.Duration("hold", 0, "держать подключение (0 — до Ctrl+C)")
 	debug := flag.Bool("debug", false, "журнал XML-обмена (секреты маскируются)")
+	checkUpdate := flag.Bool("check-update", false, "скачать последний релиз и проверить его подпись")
 	flag.Parse()
 
+	if *checkUpdate {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		m, err := update.FetchManifest(ctx, "")
+		if err != nil {
+			fail(err)
+		}
+		fmt.Printf("последний релиз: %s (текущая сборка %s)\n%s\n", m.Version, version, m.URL)
+		data, err := update.Download(ctx, m.URL, 300<<20)
+		if err != nil {
+			fail(err)
+		}
+		if err := update.Verify(m, data, update.PublicKey()); err != nil {
+			fail(err)
+		}
+		fmt.Printf("установщик %d байт: SHA-256 и подпись ed25519 верны\n", len(data))
+		return
+	}
 	if *host == "" {
 		flag.Usage()
 		os.Exit(2)
