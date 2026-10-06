@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: go vet
+        run: go vet -tags "with_gvisor,desktop,production" ./...
+      - name: gofmt
+        shell: bash
+        run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
+      - name: tests
+        run: go test -tags with_gvisor -count=1 -timeout 15m ./...
+      - name: build
+        shell: pwsh
+        run: ./build/build.ps1 -Version 0.0.0-ci -NoInstaller

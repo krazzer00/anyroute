@@ -1,0 +1,69 @@
+name: Release
+
+# Релиз — по тегу vX.Y.Z: сборка, установщик, подпись latest.json ключом
+# из секрета UPDATE_SIGNING_KEY (ed25519), публикация GitHub Release.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: version
+        id: v
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: tests
+        run: go test -tags with_gvisor -count=1 -timeout 15m ./...
+
+      - name: NSIS
+        shell: pwsh
+        run: |
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue) -and -not (Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe")) {
+            choco install nsis -y --no-progress
+          }
+
+      - name: build
+        shell: pwsh
+        run: ./build/build.ps1 -Version ${{ steps.v.outputs.version }}
+
+      - name: release notes
+        shell: bash
+        run: |
+          prev=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+          if [ -n "$prev" ]; then range="$prev..${GITHUB_REF_NAME}"; else range="${GITHUB_REF_NAME}"; fi
+          git log --no-merges --format='• %s' $range | grep -v -E '^• (docs|ci|test|chore)' > notes.md || true
+          [ -s notes.md ] || echo "• Исправления и улучшения" > notes.md
+          cat notes.md
+
+      - name: sign
+        shell: bash
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+        run: |
+          v=${{ steps.v.outputs.version }}
+          go run ./cmd/anyroute-sign -version "$v" -file "dist/AnyRoute-Setup-$v.exe" -notes notes.md > dist/latest.json
+          cat dist/latest.json
+
+      - name: publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=${{ steps.v.outputs.version }}
+          gh release create "$GITHUB_REF_NAME" "dist/AnyRoute-Setup-$v.exe" dist/latest.json \
+            --title "AnyRoute $v" --notes-file notes.md
