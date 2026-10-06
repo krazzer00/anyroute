@@ -8,6 +8,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -15,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/svc"
 	"golang.org/x/sys/windows/svc/mgr"
 
@@ -148,14 +150,24 @@ func install() error {
 		}
 		time.Sleep(time.Second)
 	}
-	s, err := m.CreateService(service.Name, exe, mgr.Config{
+	cfg := mgr.Config{
 		DisplayName:  "AnyRoute VPN",
 		Description:  "Клиент Cisco AnyConnect с маршрутизацией по правилам (TUN). Держит VPN-туннель, чтобы интерфейс работал без прав администратора.",
 		StartType:    mgr.StartAutomatic,
 		ErrorControl: mgr.ErrorNormal,
-	})
-	if err != nil {
-		return fmt.Errorf("создание службы: %w", err)
+	}
+	// Только что удалённая служба может оставаться «помеченной для
+	// удаления», пока кто-то держит её дескриптор, — повторяем до 15 с.
+	var s *mgr.Service
+	for attempt := 0; ; attempt++ {
+		s, err = m.CreateService(service.Name, exe, cfg)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, windows.ERROR_SERVICE_MARKED_FOR_DELETE) || attempt >= 30 {
+			return fmt.Errorf("создание службы: %w", err)
+		}
+		time.Sleep(500 * time.Millisecond)
 	}
 	defer s.Close()
 	// Автоперезапуск при сбое: 5 с, 5 с, затем 30 с; счётчик сбрасывается за сутки.
