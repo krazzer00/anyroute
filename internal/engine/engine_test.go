@@ -158,3 +158,29 @@ func TestEngineVPNOutbound(t *testing.T) {
 		t.Fatalf("остановка заняла %s", time.Since(start))
 	}
 }
+
+// TestAllRuleKindsAccepted — sing-box принимает конфигурацию со всеми видами
+// правил и обоими режимами «по умолчанию».
+func TestAllRuleKindsAccepted(t *testing.T) {
+	full, errs := rules.Parse("processName:a.exe\nprocessPath:C:/x/b.exe\ndomain:a.example\nfull:b.example\nkeyword:intra\nregexp:^git\nip:198.51.100.0/24\nport:3389\nport:1000-2000")
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	for _, def := range []string{rules.OutDirect, rules.OutVPN} {
+		plan := rules.Compile(rules.Input{
+			DefaultOutbound: def, ServerRoutesToVPN: true, LANDirect: true,
+			LocalNets: []netip.Prefix{netip.MustParsePrefix("192.168.2.0/24")},
+			VPN:       full, Direct: full, Block: full,
+			Server: rules.Server{Gateway: netip.MustParseAddr("203.0.113.1"),
+				SplitInclude: []netip.Prefix{netip.MustParsePrefix("10.0.0.0/8")},
+				SplitDNS:     []string{"corp.example"}, DNS: []netip.Addr{netip.MustParseAddr("10.0.0.53")}},
+		})
+		eng := New(logx.New(100, nil).Source("t"), NewSession(nil, nil))
+		err := eng.Start(Params{NoTun: true, Plan: plan, LogLevel: "error", TunPrefix: netip.MustParsePrefix("172.29.254.1/30"),
+			LocalDNS: []netip.Addr{netip.MustParseAddr("192.168.2.1")}, CachePath: t.TempDir() + "/c.db"})
+		if err != nil {
+			t.Fatalf("default=%s: %v", def, err)
+		}
+		eng.Stop()
+	}
+}
