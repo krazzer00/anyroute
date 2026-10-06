@@ -14,6 +14,7 @@ import (
 	"github.com/krazzer00/anyroute/internal/logx"
 	"github.com/krazzer00/anyroute/internal/mockasa"
 	"github.com/krazzer00/anyroute/internal/profiles"
+	"github.com/krazzer00/anyroute/internal/rules"
 )
 
 type fakePlatform struct {
@@ -54,9 +55,9 @@ func (f *fakePlatform) applied() string {
 
 type fakeHosts struct{ n atomic.Int32 }
 
-func (h *fakeHosts) Add(ips []netip.Addr)                      { h.n.Add(int32(len(ips))) }
-func (h *fakeHosts) Reapply(netip.Addr, func(netip.Addr) bool) {}
-func (h *fakeHosts) Count() int                                { return int(h.n.Load()) }
+func (h *fakeHosts) Add(ips []netip.Addr)                    { h.n.Add(int32(len(ips))) }
+func (h *fakeHosts) Reset(netip.Addr, func(netip.Addr) bool) {}
+func (h *fakeHosts) Count() int                              { return int(h.n.Load()) }
 
 func newMock(t *testing.T) *mockasa.Server {
 	t.Helper()
@@ -240,4 +241,19 @@ func TestServerDropGoesIdle(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 	t.Fatalf("после обрыва состояние %+v", c.Status())
+}
+
+func TestHostRoutesOnlyForVPNListDomains(t *testing.T) {
+	h := &fakeHosts{}
+	lc := &liveConn{hosts: h}
+	v, _, _, _ := profiles.Routing{VPN: "domain:jira.example.net"}.Compile()
+	lc.matcher = rules.NewDomainMatcher(v)
+	lc.onDNSReply("www.astralinux.example.", []netip.Addr{netip.MustParseAddr("51.250.40.209")})
+	if h.Count() != 0 {
+		t.Fatal("host-маршрут для домена вне списка VPN")
+	}
+	lc.onDNSReply("jira.example.net.", []netip.Addr{netip.MustParseAddr("198.51.100.7")})
+	if h.Count() != 1 {
+		t.Fatal("нет host-маршрута для домена из списка VPN")
+	}
 }

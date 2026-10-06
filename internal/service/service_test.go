@@ -39,9 +39,9 @@ func (fakePlat) NoTun() bool { return true }
 
 type nopHosts struct{}
 
-func (nopHosts) Add([]netip.Addr)                          {}
-func (nopHosts) Reapply(netip.Addr, func(netip.Addr) bool) {}
-func (nopHosts) Count() int                                { return 0 }
+func (nopHosts) Add([]netip.Addr)                        {}
+func (nopHosts) Reset(netip.Addr, func(netip.Addr) bool) {}
+func (nopHosts) Count() int                              { return 0 }
 
 func TestServiceOverPipe(t *testing.T) {
 	srv, err := mockasa.New(mockasa.Config{
@@ -55,7 +55,7 @@ func TestServiceOverPipe(t *testing.T) {
 	defer srv.Close()
 
 	pipe := fmt.Sprintf(`\\.\pipe\anyroute-svc-test-%d`, time.Now().UnixNano())
-	s, err := Start("test", fakePlat{}, nil, pipe, nil)
+	s, err := Start("test", fakePlat{}, nil, pipe, nil, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}

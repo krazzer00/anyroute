@@ -154,3 +154,43 @@ func TestNRPTNestedZones(t *testing.T) {
 		t.Fatalf("got %v", got)
 	}
 }
+
+// Зоны split-DNS сервера — только для DNS: маршрут определяют адреса.
+// Имя из зоны с публичным адресом вне split-include должно идти напрямую.
+func TestSplitDNSIsNotRouting(t *testing.T) {
+	vpn, _ := Parse("domain:jira.example.net")
+	p := Compile(Input{DefaultOutbound: OutDirect, ServerRoutesToVPN: true, VPN: vpn, Server: srv()})
+	for _, r := range p.Rules {
+		if r.Name == "сети сервера" && len(r.Match.DomainSuffix) > 0 {
+			t.Fatalf("зоны сервера попали в правило маршрутизации: %+v", r.Match)
+		}
+	}
+	m := p.HostRouteDomains
+	if m.Match("www.corp.example") || m.Match("corp.example") {
+		t.Fatal("host-маршрут для имени из зоны сервера")
+	}
+	if !m.Match("jira.example.net") || !m.Match("a.jira.example.net.") || m.Match("xjira.example.net") {
+		t.Fatal("сопоставление доменов из списка VPN")
+	}
+	if Covers(p.RouteAddress, netip.MustParseAddr("51.250.40.209")) {
+		t.Fatal("публичный адрес вне split-include захвачен")
+	}
+	// DNS зоны сервера по-прежнему спрашивается у шлюза.
+	if len(p.NRPT) == 0 || p.NRPT[0] != ".corp.example" {
+		t.Fatalf("NRPT %v", p.NRPT)
+	}
+}
+
+func TestDomainMatcherKinds(t *testing.T) {
+	l, _ := Parse("full:a.example\nkeyword:intra\n" + `regexp:^git\.`)
+	m := NewDomainMatcher(l)
+	for name, want := range map[string]bool{"a.example": true, "b.a.example": false, "my-intra.ru": true, "git.corp": true, "gitlab.corp": false} {
+		if m.Match(name) != want {
+			t.Errorf("%s: %v", name, !want)
+		}
+	}
+	var nilm *DomainMatcher
+	if nilm.Match("x") {
+		t.Fatal("nil matcher")
+	}
+}

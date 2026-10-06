@@ -80,9 +80,9 @@ func start(console bool) (*service.Service, error) {
 	}
 	var err error
 	if out != nil {
-		s, err = service.Start(version, core.WindowsPlatform{}, app, ipc.PipeName, out)
+		s, err = service.Start(version, core.WindowsPlatform{}, app, ipc.PipeName, out, "")
 	} else {
-		s, err = service.Start(version, core.WindowsPlatform{}, app, ipc.PipeName, nil)
+		s, err = service.Start(version, core.WindowsPlatform{}, app, ipc.PipeName, nil, "")
 	}
 	if err != nil {
 		return nil, err

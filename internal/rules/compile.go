@@ -2,6 +2,7 @@ package rules
 
 import (
 	"net/netip"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -57,6 +58,58 @@ type Plan struct {
 	DNSRules     []DNSRule
 	DNSFinal     string
 	Warnings     []string
+	// HostRouteDomains — для каких имён ответ DNS превращается в /32-маршрут
+	// в TUN (домены из списка «Через VPN»).
+	HostRouteDomains *DomainMatcher `json:"-"`
+}
+
+// DomainMatcher проверяет имя по доменным правилам списка.
+type DomainMatcher struct {
+	suffix  []string
+	full    map[string]bool
+	keyword []string
+	regex   []*regexp.Regexp
+}
+
+// NewDomainMatcher строит сопоставитель по доменным полям списка.
+func NewDomainMatcher(l List) *DomainMatcher {
+	m := &DomainMatcher{suffix: l.DomainSuffix, keyword: l.Keyword, full: map[string]bool{}}
+	for _, d := range l.Domain {
+		m.full[d] = true
+	}
+	for _, r := range l.Regex {
+		if re, err := regexp.Compile(r); err == nil {
+			m.regex = append(m.regex, re)
+		}
+	}
+	return m
+}
+
+// Match — подходит ли имя (без завершающей точки, регистр не важен).
+func (m *DomainMatcher) Match(name string) bool {
+	if m == nil {
+		return false
+	}
+	name = strings.ToLower(strings.TrimSuffix(name, "."))
+	if m.full[name] {
+		return true
+	}
+	for _, s := range m.suffix {
+		if name == s || strings.HasSuffix(name, "."+s) {
+			return true
+		}
+	}
+	for _, k := range m.keyword {
+		if strings.Contains(name, k) {
+			return true
+		}
+	}
+	for _, re := range m.regex {
+		if re.MatchString(name) {
+			return true
+		}
+	}
+	return false
 }
 
 var (
@@ -98,11 +151,16 @@ func Compile(in Input) Plan {
 		if len(in.Server.SplitExclude) > 0 {
 			p.Rules = append(p.Rules, Rule{Name: "исключения сервера", Outbound: OutDirect, Match: List{CIDR: in.Server.SplitExclude}})
 		}
-		srv := List{CIDR: in.Server.SplitInclude, DomainSuffix: in.Server.SplitDNS}
-		if !srv.Empty() {
-			p.Rules = append(p.Rules, Rule{Name: "сети сервера", Outbound: OutVPN, Match: srv})
+		// Только адреса: зоны split-DNS определяют, какой DNS спрашивать, а не
+		// маршрут. Как у AnyConnect: имя из зоны с публичным адресом вне
+		// split-include идёт напрямую — шлюз такой трафик не пропускает.
+		if len(in.Server.SplitInclude) > 0 {
+			p.Rules = append(p.Rules, Rule{Name: "сети сервера", Outbound: OutVPN, Match: List{CIDR: in.Server.SplitInclude}})
 		}
 	}
+	// Host-маршруты (/32 в TUN по ответам DNS) — только для доменов из
+	// списка «Через VPN»: иначе адрес уже определён маршрутами выше.
+	p.HostRouteDomains = NewDomainMatcher(in.VPN)
 	if in.LANDirect {
 		lan := append([]netip.Prefix(nil), in.LocalNets...)
 		if len(lan) > 0 {
@@ -116,13 +174,16 @@ func Compile(in Input) Plan {
 	var route []netip.Prefix
 	if def == OutVPN {
 		route = append(route, halfA, halfB)
+		if len(in.Server.SplitInclude) > 0 {
+			p.Warnings = append(p.Warnings, "шлюз пропускает через VPN только свои сети — при «по умолчанию: через VPN» остальной трафик, скорее всего, не пройдёт")
+		}
 	} else {
 		route = append(route, in.VPN.CIDR...)
 		route = append(route, in.Block.CIDR...)
 		if in.ServerRoutesToVPN {
 			route = append(route, in.Server.SplitInclude...)
 			if in.Server.DefaultRoute {
-				p.Warnings = append(p.Warnings, "шлюз не выдал список сетей (ожидает весь трафик) — при «по умолчанию: напрямую» в VPN пойдёт только то, что указано в правилах и DNS-зонах сервера")
+				p.Warnings = append(p.Warnings, "шлюз не выдал список сетей (ожидает весь трафик) — при «по умолчанию: напрямую» в VPN пойдёт только то, что указано в правилах")
 			}
 		}
 	}

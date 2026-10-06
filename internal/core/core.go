@@ -36,7 +36,9 @@ type Platform interface {
 // HostRouter — host-маршруты в TUN.
 type HostRouter interface {
 	Add(ips []netip.Addr)
-	Reapply(nextHop netip.Addr, skip func(netip.Addr) bool)
+	// Reset забывает добавленные маршруты (TUN пересоздан) и задаёт новые
+	// следующий узел и фильтр.
+	Reset(nextHop netip.Addr, skip func(netip.Addr) bool)
 	Count() int
 }
 
@@ -89,6 +91,29 @@ type liveConn struct {
 	tunPrefix netip.Prefix
 	plan      rules.Plan
 	nrptOn    bool
+
+	hostMu  sync.Mutex
+	matcher *rules.DomainMatcher  // домены, для которых нужны host-маршруты
+	hostIPs map[netip.Addr]string // адрес → домен (для повтора после смены профиля)
+}
+
+// onDNSReply — ответ DNS шлюза: адреса доменов из списка «Через VPN»
+// получают /32-маршрут в TUN, остальные не трогаются.
+func (lc *liveConn) onDNSReply(domain string, ips []netip.Addr) {
+	lc.hostMu.Lock()
+	if !lc.matcher.Match(domain) {
+		lc.hostMu.Unlock()
+		return
+	}
+	if lc.hostIPs == nil {
+		lc.hostIPs = map[netip.Addr]string{}
+	}
+	for _, ip := range ips {
+		lc.hostIPs[ip] = domain
+	}
+	hosts := lc.hosts
+	lc.hostMu.Unlock()
+	hosts.Add(ips)
 }
 
 // New создаёт ядро.
@@ -486,12 +511,26 @@ func (c *Core) applyRouting(ctx context.Context, lc *liveConn, eng *engine.Engin
 	skip := func(a netip.Addr) bool { return rules.Covers(plan.RouteAddress, a) }
 	if lc.hosts == nil {
 		lc.hosts = c.plat.HostRoutes(dnsAddr, skip, func(err error) { c.src.Warnf("host-маршрут: %v", err) })
-		lc.sess.OnDNSReply(func(_ string, ips []netip.Addr) { lc.hosts.Add(ips) })
+		lc.sess.OnDNSReply(lc.onDNSReply)
 	}
 	if err := eng.Start(params); err != nil {
 		return err
 	}
-	lc.hosts.Reapply(dnsAddr, skip)
+	// TUN пересоздан — маршруты на нём пропали. Возвращаем только те, чьи
+	// домены по-прежнему в списке «Через VPN» нового профиля.
+	lc.hostMu.Lock()
+	lc.matcher = plan.HostRouteDomains
+	var keep []netip.Addr
+	for ip, d := range lc.hostIPs {
+		if lc.matcher.Match(d) {
+			keep = append(keep, ip)
+		} else {
+			delete(lc.hostIPs, ip)
+		}
+	}
+	lc.hostMu.Unlock()
+	lc.hosts.Reset(dnsAddr, skip)
+	lc.hosts.Add(keep)
 	lc.plan = plan
 
 	nctx, ncancel := context.WithTimeout(ctx, nrptTimeout)

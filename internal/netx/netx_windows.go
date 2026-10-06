@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -280,18 +279,13 @@ func (h *HostRoutes) Add(ips []netip.Addr) {
 	}
 }
 
-// Reapply повторно добавляет все запомненные маршруты (TUN пересоздан).
-func (h *HostRoutes) Reapply(nextHop netip.Addr, skip func(netip.Addr) bool) {
+// Reset забывает добавленные маршруты: TUN пересоздан, и они пропали
+// вместе со старым адаптером.
+func (h *HostRoutes) Reset(nextHop netip.Addr, skip func(netip.Addr) bool) {
 	h.mu.Lock()
-	ips := make([]netip.Addr, 0, len(h.added))
-	for ip := range h.added {
-		ips = append(ips, ip)
-	}
 	h.added = map[netip.Addr]bool{}
 	h.nextHop, h.skip = nextHop, skip
 	h.mu.Unlock()
-	sort.Slice(ips, func(i, j int) bool { return ips[i].Less(ips[j]) })
-	h.Add(ips)
 }
 
 // Count — сколько маршрутов добавлено.

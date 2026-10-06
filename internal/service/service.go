@@ -52,8 +52,8 @@ func DataDir() string {
 }
 
 // openLog открывает файл журнала службы; большой файл начинается заново.
-func openLog() (*os.File, error) {
-	dir := filepath.Join(DataDir(), "logs")
+func openLog(dataDir string) (*os.File, error) {
+	dir := filepath.Join(dataDir, "logs")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
@@ -65,10 +65,14 @@ func openLog() (*os.File, error) {
 }
 
 // Start поднимает службу: журнал, ядро, очистку остатков, канал.
-func Start(version string, plat core.Platform, upd Updater, pipeName string, console io.Writer) (*Service, error) {
+// dataDir — каталог журнала и кэша ("" — DataDir()).
+func Start(version string, plat core.Platform, upd Updater, pipeName string, console io.Writer, dataDir string) (*Service, error) {
+	if dataDir == "" {
+		dataDir = DataDir()
+	}
 	var out io.Writer = console
 	var closer io.Closer
-	if f, err := openLog(); err == nil {
+	if f, err := openLog(dataDir); err == nil {
 		closer = f
 		if console != nil {
 			out = io.MultiWriter(f, console)
@@ -82,8 +86,8 @@ func Start(version string, plat core.Platform, upd Updater, pipeName string, con
 	src.Infof("служба AnyRoute %s запускается", version)
 
 	s.Core = core.New(log, plat, version)
-	if err := os.MkdirAll(DataDir(), 0o755); err == nil {
-		s.Core.CachePath = filepath.Join(DataDir(), "cache.db")
+	if err := os.MkdirAll(dataDir, 0o755); err == nil {
+		s.Core.CachePath = filepath.Join(dataDir, "cache.db")
 	}
 	// Остатки прошлого аварийного завершения убираются сразу при старте
 	// службы — до того, как пользователь нажмёт «Подключить».
