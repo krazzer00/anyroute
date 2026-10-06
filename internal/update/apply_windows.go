@@ -49,7 +49,9 @@ func secureDir(dir string) error {
 
 // relaunchMarker — файл-флаг: после обновления новая служба запускает
 // интерфейс в сеансе пользователя.
-func (a *Applier) relaunchMarker() string { return filepath.Join(a.DataDir, "updates", "relaunch.json") }
+func (a *Applier) relaunchMarker() string {
+	return filepath.Join(a.DataDir, "updates", "relaunch.json")
+}
 
 // Apply скачивает, проверяет и запускает установщик версии version.
 func (a *Applier) Apply(ctx context.Context, version string, log *logx.Src) error {

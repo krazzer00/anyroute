@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AnyRoute</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="frame" id="frame">
+  <header class="titlebar" ondblclick="App.win.toggleMax()">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M8 15.5 12 8.5l4 7"/><circle cx="8" cy="15.5" r="1.2" fill="#22d3ee"/><circle cx="12" cy="8.5" r="1.2" fill="#22d3ee"/><circle cx="16" cy="15.5" r="1.2" fill="#22d3ee"/></svg>
+      <b>ANYROUTE</b><span class="ver" id="version">dev</span>
+    </div>
+    <div class="svc-pill" id="svcPill"><span>Служба AnyRoute не отвечает</span><button id="svcRestart">Перезапустить</button></div>
+    <div class="spacer"></div>
+    <button class="tb-btn" title="Настройки" id="btnSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+    <button class="tb-btn" title="Свернуть" onclick="App.win.min()"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14"/></svg></button>
+    <button class="tb-btn" title="Развернуть" onclick="App.win.toggleMax()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="5" width="14" height="14" rx="2"/></svg></button>
+    <button class="tb-btn close" title="Свернуть в трей" onclick="App.win.hide()"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+  </header>
+
+  <div class="body">
+    <aside class="sidebar">
+      <div class="side-head"><span class="label">Серверы</span>
+        <button class="icon-btn" title="Добавить сервер" id="btnAddServer"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg></button>
+      </div>
+      <ul class="servers" id="servers"></ul>
+      <div class="side-foot">
+        <button class="btn" id="btnProfiles"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h10M4 12h16M4 18h7"/><circle cx="17" cy="6" r="2"/><circle cx="14" cy="18" r="2"/></svg>Профили маршрутизации</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section class="hero" id="hero">
+        <div class="ring-wrap">
+          <svg class="orbit" viewBox="0 0 190 190">
+            <circle class="ticks" cx="95" cy="95" r="90"/>
+            <circle class="track" cx="95" cy="95" r="84"/>
+            <circle class="arc" cx="95" cy="95" r="84"/>
+          </svg>
+          <button class="ring-btn" id="ringBtn" title="Подключить / отключить">
+            <svg class="power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v8"/><path d="M6.4 6.6a8 8 0 1 0 11.2 0"/></svg>
+          </button>
+        </div>
+        <div class="hero-info">
+          <div class="state-line"><div class="state-text" id="stateText">Отключено</div><span class="timer hidden" id="timer">00:00:00</span><span class="timer hidden" id="transport" title="Транспорт туннеля">TLS</span></div>
+          <div class="server-title" id="serverTitle">Добавьте сервер слева, чтобы подключиться</div>
+          <div class="profile-row">
+            <span class="label">Маршрутизация</span>
+            <select class="select" id="profileSelect"></select>
+            <button class="btn ghost" id="btnEditProfile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Изменить</button>
+          </div>
+        </div>
+        <div class="chips" id="chips"></div>
+        <div class="notice err" id="errNotice"></div>
+        <div class="notice warn" id="warnNotice"></div>
+      </section>
+
+      <div class="update-bar" id="updateBar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 19h16"/></svg>
+        <div class="grow" id="updateText">Доступна новая версия</div>
+        <button class="btn" id="btnUpdateNotes">Что нового</button>
+        <button class="btn primary" id="btnUpdateNow">Обновить</button>
+      </div>
+
+      <nav class="tabs">
+        <button class="tab active" data-tab="logs">Логи</button>
+        <button class="tab" data-tab="apps">Приложения<span class="count" id="appsCount"></span></button>
+        <button class="tab" data-tab="chart">График</button>
+      </nav>
+
+      <div class="panels">
+        <section class="panel active" id="panel-logs">
+          <div class="toolbar">
+            <div class="seg" id="logLevels">
+              <button data-lv="all" class="on">Все</button><button data-lv="info">Инфо</button><button data-lv="warn">Внимание</button><button data-lv="error">Ошибки</button><button data-lv="debug">Отладка</button>
+            </div>
+            <input class="input search" id="logSearch" placeholder="Поиск в журнале">
+            <div class="grow"></div>
+            <label class="check" title="Автопрокрутка к новым записям"><input type="checkbox" id="logFollow" checked>Авто</label>
+            <button class="icon-btn" id="btnCopyLogs" title="Копировать журнал"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button>
+            <button class="icon-btn" id="btnClearLogs" title="Очистить экран журнала"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
+          </div>
+          <div class="logs" id="logs"></div>
+        </section>
+
+        <section class="panel" id="panel-apps">
+          <div class="toolbar">
+            <input class="input search" id="appSearch" placeholder="Процесс, домен или адрес">
+            <div class="seg" id="appFilter">
+              <button data-f="all" class="on">Все</button><button data-f="vpn">VPN</button><button data-f="direct">Напрямую</button><button data-f="block">Заблокировано</button>
+            </div>
+            <div class="grow"></div>
+            <label class="check"><input type="checkbox" id="appClosed">Закрытые</label>
+          </div>
+          <div class="apps"><table><thead><tr><th>Приложение</th><th>Соединения</th><th>Куда</th><th style="text-align:right">↑ Отдано</th><th style="text-align:right">↓ Получено</th></tr></thead><tbody id="appsBody"></tbody></table>
+            <div class="empty-hint hidden" id="appsEmpty">Соединений пока нет. Здесь появятся приложения, трафик которых прошёл через AnyRoute.</div>
+          </div>
+        </section>
+
+        <section class="panel" id="panel-chart">
+          <div class="toolbar">
+            <span class="label">Скорость за 5 минут</span><div class="grow"></div>
+            <div class="seg" id="chartMode"><button data-m="both" class="on">Всё</button><button data-m="vpn">VPN</button><button data-m="direct">Напрямую</button></div>
+          </div>
+          <div class="chart-wrap">
+            <div class="speeds">
+              <div class="speed"><div class="k"><i style="background:#22d3ee"></i>VPN ↓</div><div class="v" id="spVd">0 Б/с</div><div class="tot" id="totVd">всего 0 Б</div></div>
+              <div class="speed"><div class="k"><i style="background:#7dd3fc"></i>VPN ↑</div><div class="v" id="spVu">0 Б/с</div><div class="tot" id="totVu">всего 0 Б</div></div>
+              <div class="speed"><div class="k"><i style="background:#a78bfa"></i>Напрямую ↓</div><div class="v" id="spDd">0 Б/с</div><div class="tot" id="totDd">всего 0 Б</div></div>
+              <div class="speed"><div class="k"><i style="background:#f0abfc"></i>Напрямую ↑</div><div class="v" id="spDu">0 Б/с</div><div class="tot" id="totDu">всего 0 Б</div></div>
+            </div>
+            <div class="chart-box" id="chartBox"><canvas id="chart"></canvas><div class="chart-tip" id="chartTip"></div></div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Сервер -->
+  <div class="modal-back" id="mServer"><div class="modal">
+    <div class="modal-head"><h2 id="mServerTitle">Новый сервер</h2></div>
+    <div class="modal-body">
+      <label class="field"><span>Название</span><input class="input" id="sName" placeholder="Например: Офис"></label>
+      <label class="field"><span>Адрес сервера</span><input class="input" id="sHost" placeholder="vpn.example.com"></label>
+      <div class="field"><span>Группа</span>
+        <div class="row"><select class="select" id="sGroup" style="flex:1"><option value="">По умолчанию сервера</option></select>
+          <button class="btn" id="btnFetchGroups" title="Запросить список групп у сервера">↻ С сервера</button></div>
+        <small>Список групп выдаёт сам сервер; название должно совпасть буквально.</small>
+      </div>
+      <div class="grid2">
+        <label class="field"><span>Логин</span><input class="input" id="sUser" autocomplete="off"></label>
+        <label class="field"><span>Пароль</span><input class="input" id="sPass" type="password" placeholder="••••••"></label>
+      </div>
+      <label class="check"><input type="checkbox" id="sSavePass" checked>Сохранить пароль в диспетчере учётных данных Windows</label>
+      <div class="field"><span>TOTP-секрет для автоматического кода (необязательно)</span>
+        <div class="row"><input class="input" id="sTotp" placeholder="Base32 из QR-кода или ссылка otpauth://"><span class="totp-preview" id="totpPreview"></span></div>
+        <small id="totpState">Если указать — код второго фактора будет подставляться сам. Без секрета код вводится вручную.</small>
+      </div>
+      <div class="field"><span>Профиль маршрутизации</span><select class="select" id="sProfile"></select></div>
+      <label class="check"><input type="checkbox" id="sInsecure">Не проверять сертификат сервера (только для тестовых стендов)</label>
+    </div>
+    <div class="modal-foot"><button class="btn danger left hidden" id="btnDeleteServer">Удалить</button><button class="btn ghost" data-close>Отмена</button><button class="btn primary" id="btnSaveServer">Сохранить</button></div>
+  </div></div>
+
+  <!-- Пароль -->
+  <div class="modal-back" id="mPass"><div class="modal" style="width:420px">
+    <div class="modal-head"><h2>Пароль</h2></div>
+    <div class="modal-body"><div id="passFor" class="challenge-msg"></div>
+      <input class="input" id="pPass" type="password" placeholder="Пароль">
+      <label class="check"><input type="checkbox" id="pRemember" checked>Запомнить пароль</label></div>
+    <div class="modal-foot"><button class="btn ghost" data-close>Отмена</button><button class="btn primary" id="btnPassOk">Подключить</button></div>
+  </div></div>
+
+  <!-- 2FA -->
+  <div class="modal-back" id="m2fa"><div class="modal" style="width:440px">
+    <div class="modal-head"><h2>Код подтверждения</h2></div>
+    <div class="modal-body"><div class="challenge-msg" id="chMsg"></div>
+      <input class="input code-input" id="chCode" inputmode="numeric" autocomplete="one-time-code" maxlength="12"></div>
+    <div class="modal-foot"><button class="btn ghost" id="btn2faCancel">Отменить подключение</button><button class="btn primary" id="btn2faOk">Отправить</button></div>
+  </div></div>
+
+  <!-- Маршрутизация -->
+  <div class="modal-back" id="mProfiles"><div class="modal wide">
+    <div class="modal-head"><h2>Профили маршрутизации</h2><button class="btn ghost" id="btnHelp">Как пользоваться</button></div>
+    <div class="prof-layout">
+      <div class="prof-list"><div id="profList"></div>
+        <button class="btn" id="btnNewProfile" style="margin-top:8px">+ Новый профиль</button>
+        <button class="btn ghost" id="btnDupProfile">Копировать</button></div>
+      <div class="prof-edit">
+        <div class="prof-top">
+          <label class="field"><span>Название</span><input class="input" id="pfName"></label>
+          <label class="field"><span>По умолчанию</span><select class="select" id="pfDefault"><option value="direct">Напрямую (как AnyConnect)</option><option value="vpn">Через VPN (всё)</option></select></label>
+        </div>
+        <div class="prof-flags">
+          <label class="check"><input type="checkbox" id="pfServer">Сети и DNS-зоны сервера → VPN</label>
+          <label class="check"><input type="checkbox" id="pfLan">Локальная сеть напрямую</label>
+        </div>
+        <div class="help" id="help">
+          По правилу в строке, <code>#</code> — комментарий. Проверка идёт сверху вниз: <b>Блокировать</b> → <b>Напрямую</b> → <b>VPN</b> → сети сервера → по умолчанию.
+          <table>
+            <tr><td><code>processName:Telegram.exe</code></td><td>по имени процесса</td></tr>
+            <tr><td><code>processPath:C:\Apps\x.exe</code></td><td>по полному пути</td></tr>
+            <tr><td><code>domain:corp.example</code>, <code>*.corp.example</code>, <code>corp.example</code></td><td>домен и все поддомены</td></tr>
+            <tr><td><code>full:jira.corp.example</code></td><td>только это имя</td></tr>
+            <tr><td><code>keyword:intra</code> / <code>regexp:^git\.</code></td><td>подстрока / регулярное выражение</td></tr>
+            <tr><td><code>ip:10.0.0.0/8</code>, <code>192.168.1.5</code></td><td>адрес или подсеть</td></tr>
+            <tr><td><code>port:3389</code>, <code>port:1000-2000</code></td><td>порт назначения</td></tr>
+          </table>
+          Совместная работа с Throne: AnyRoute забирает только то, что идёт в VPN (узкие маршруты), остальной трафик остаётся за Throne.
+        </div>
+        <div class="lists">
+          <div class="list-box vpn"><div class="lt"><i></i>Через VPN</div><textarea class="textarea" id="pfVpn" spellcheck="false"></textarea><div class="errs" id="errVpn"></div></div>
+          <div class="list-box direct"><div class="lt"><i></i>Напрямую</div><textarea class="textarea" id="pfDirect" spellcheck="false"></textarea><div class="errs" id="errDirect"></div></div>
+          <div class="list-box block" style="grid-column:1/3"><div class="lt"><i></i>Блокировать</div><textarea class="textarea" id="pfBlock" spellcheck="false"></textarea><div class="errs" id="errBlock"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn danger left" id="btnDelProfile">Удалить профиль</button><button class="btn ghost" data-close>Закрыть</button><button class="btn primary" id="btnSaveProfile">Сохранить</button></div>
+  </div></div>
+
+  <!-- Настройки -->
+  <div class="modal-back" id="mSettings"><div class="modal" style="width:480px">
+    <div class="modal-head"><h2>Настройки</h2></div>
+    <div class="modal-body">
+      <label class="check"><input type="checkbox" id="stAutostart">Запускать при входе в Windows (свёрнутым в трей)</label>
+      <label class="check"><input type="checkbox" id="stUpdates">Проверять обновления автоматически</label>
+      <label class="check"><input type="checkbox" id="stEffects">Эффекты прозрачности (после перезапуска)</label>
+      <label class="check"><input type="checkbox" id="stDisconnect">Отключать VPN при выходе из приложения</label>
+      <label class="field"><span>Подробность журнала</span><select class="select" id="stLevel"><option value="info">Обычная</option><option value="debug">Отладка (с XML-обменом, секреты скрыты)</option></select></label>
+      <div class="field"><span>Обновления</span><div class="row"><button class="btn" id="btnCheckUpdate">Проверить сейчас</button><span id="updState" style="align-self:center;color:var(--text-3)"></span></div></div>
+    </div>
+    <div class="modal-foot"><button class="btn danger left" id="btnQuit">Выйти из AnyRoute</button><button class="btn ghost" data-close>Отмена</button><button class="btn primary" id="btnSaveSettings">Сохранить</button></div>
+  </div></div>
+
+  <!-- Обновление -->
+  <div class="modal-back" id="mUpdate"><div class="modal">
+    <div class="modal-head"><h2 id="updTitle">Обновление</h2></div>
+    <div class="modal-body"><div class="notes" id="updNotes"></div>
+      <div class="challenge-msg">Во время установки VPN будет отключён, затем AnyRoute перезапустится сам.</div></div>
+    <div class="modal-foot"><button class="btn ghost" data-close>Позже</button><button class="btn primary" id="btnUpdateGo">Установить</button></div>
+  </div></div>
+
+  <div class="toasts" id="toasts"></div>
+</div>
+<script src="js/chart.js"></script>
+<script src="js/mock.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
