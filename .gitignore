@@ -1,0 +1,29 @@
+# Сборка
+bin/
+build/bin/
+dist/
+*.exe
+*.dll
+*.syso.tmp
+
+# Пользовательские данные — никогда не коммитятся
+config.toml
+servers.json
+profiles/
+*.log
+*.dmp
+
+# Ключи и секреты
+*.key
+*.pem
+*.pfx
+*.p12
+*.cer
+.env
+.env.*
+update-signing*
+
+# Окружение
+.vscode/
+.idea/
+node_modules/
