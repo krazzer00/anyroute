@@ -94,12 +94,12 @@ type Server struct {
 	ln   net.Listener
 	vnet *vnet
 
-	mu         sync.Mutex
+	mu          sync.Mutex
 	tokens      map[string]bool // выданные session-token
 	cstpActive  bool            // уже есть активный CSTP-туннель
 	closed      bool
-	disconnects int             // получено DISCONNECT-фреймов от клиентов
-	authHandle  string          // выданный в challenge auth-handle (ASAChallenge)
+	disconnects int    // получено DISCONNECT-фреймов от клиентов
+	authHandle  string // выданный в challenge auth-handle (ASAChallenge)
 
 	wg sync.WaitGroup
 }
