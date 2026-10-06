@@ -100,6 +100,7 @@ type Server struct {
 	closed      bool
 	disconnects int    // получено DISCONNECT-фреймов от клиентов
 	authHandle  string // выданный в challenge auth-handle (ASAChallenge)
+	conns       map[net.Conn]struct{}
 
 	wg sync.WaitGroup
 }
@@ -144,6 +145,7 @@ func New(cfg Config) (*Server, error) {
 		ln:     ln,
 		vnet:   v,
 		tokens: make(map[string]bool),
+		conns:  make(map[net.Conn]struct{}),
 	}
 	s.wg.Add(1)
 	go s.acceptLoop()
@@ -174,6 +176,12 @@ func (s *Server) Close() error {
 	s.mu.Unlock()
 
 	err := s.ln.Close()
+	// Разрываем клиентские соединения — как упавший шлюз.
+	s.mu.Lock()
+	for c := range s.conns {
+		_ = c.Close()
+	}
+	s.mu.Unlock()
 	s.wg.Wait()
 	s.vnet.close()
 	return err
@@ -285,7 +293,15 @@ type connState struct {
 // handleConn обслуживает одно TLS-соединение: цикл HTTP-запросов
 // (аутентификация), затем — при CONNECT — CSTP-туннель.
 func (s *Server) handleConn(conn net.Conn) {
-	defer conn.Close()
+	s.mu.Lock()
+	s.conns[conn] = struct{}{}
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		delete(s.conns, conn)
+		s.mu.Unlock()
+		conn.Close()
+	}()
 	br := bufio.NewReader(conn)
 	st := &connState{}
 
