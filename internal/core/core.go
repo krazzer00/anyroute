@@ -59,6 +59,9 @@ type Core struct {
 	version  string
 	debugXML atomic.Bool
 
+	// CachePath — файл кэша sing-box (служба: %ProgramData%\AnyRoute\cache.db).
+	CachePath string
+
 	status atomic.Pointer[Status]
 
 	mu       sync.Mutex
@@ -477,7 +480,7 @@ func (c *Core) applyRouting(ctx context.Context, lc *liveConn, eng *engine.Engin
 	}
 	params := engine.Params{
 		TunName: "anyroute-tun", TunPrefix: lc.tunPrefix, MTU: lc.info.MTU, Plan: plan,
-		LocalDNS: c.plat.LocalDNS(), LogLevel: "info", NoTun: c.plat.NoTun(),
+		LocalDNS: c.plat.LocalDNS(), LogLevel: "info", NoTun: c.plat.NoTun(), CachePath: c.CachePath,
 	}
 	dnsAddr := params.DNSAddress()
 	skip := func(a netip.Addr) bool { return rules.Covers(plan.RouteAddress, a) }

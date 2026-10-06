@@ -82,6 +82,9 @@ func Start(version string, plat core.Platform, upd Updater, pipeName string, con
 	src.Infof("служба AnyRoute %s запускается", version)
 
 	s.Core = core.New(log, plat, version)
+	if err := os.MkdirAll(DataDir(), 0o755); err == nil {
+		s.Core.CachePath = filepath.Join(DataDir(), "cache.db")
+	}
 	// Остатки прошлого аварийного завершения убираются сразу при старте
 	// службы — до того, как пользователь нажмёт «Подключить».
 	go func() {

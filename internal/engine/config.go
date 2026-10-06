@@ -3,6 +3,9 @@ package engine
 import (
 	"encoding/json"
 	"net/netip"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/krazzer00/anyroute/internal/rules"
@@ -28,6 +31,10 @@ type Params struct {
 	LocalDNS []netip.Addr
 	LogLevel string // trace|debug|info|warn|error
 	NoTun    bool   // без TUN-инбаунда (тесты)
+	// CachePath — файл кэша sing-box. sing-box включает его сам, когда
+	// задан обработчик журнала; без пути он писал бы cache.db в текущий
+	// каталог (у службы — System32).
+	CachePath string
 }
 
 // DNSAddress — адрес DNS AnyRoute внутри подсети TUN (следующий за адресом
@@ -45,6 +52,9 @@ func Build(p Params) ([]byte, error) {
 			map[string]any{"type": "block", "tag": tagBlock},
 		},
 		"route": buildRoute(p),
+		"experimental": map[string]any{
+			"cache_file": map[string]any{"enabled": true, "path": cachePath(p.CachePath)},
+		},
 	}
 	if !p.NoTun {
 		tun := map[string]any{
@@ -200,6 +210,13 @@ func prefixes(ps []netip.Prefix) []string {
 		out = append(out, p.String())
 	}
 	return out
+}
+
+func cachePath(p string) string {
+	if p != "" {
+		return p
+	}
+	return filepath.Join(os.TempDir(), "anyroute-cache-"+strconv.Itoa(os.Getpid())+".db")
 }
 
 func mtu(n int) int {

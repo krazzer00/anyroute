@@ -7,9 +7,9 @@ dist/
 *.syso.tmp
 
 # Пользовательские данные — никогда не коммитятся
-config.toml
-servers.json
-profiles/
+/config.toml
+/servers.json
+/profiles/
 *.log
 *.dmp
 
@@ -27,3 +27,7 @@ update-signing*
 .vscode/
 .idea/
 node_modules/
+
+# Кэш sing-box
+cache.db
+*.db
