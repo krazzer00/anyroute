@@ -1,0 +1,11 @@
+AnyRoute
+Copyright (C) 2026 krazzer00
+Licensed under the GNU General Public License v3.0 (see LICENSE).
+
+This product includes software developed by third parties:
+
+- sslcon (https://github.com/tlslink/sslcon), MIT License, Copyright (c) 2022 TLSLink.
+  Parts of internal/anyconnect are derived from it.
+- sing-box (https://github.com/SagerNet/sing-box), GPL-3.0-or-later, Copyright (C) nekohasekai.
+- gVisor (https://github.com/google/gvisor, fork github.com/sagernet/gvisor), Apache License 2.0.
+- pion/dtls (https://github.com/pion/dtls), MIT License.
