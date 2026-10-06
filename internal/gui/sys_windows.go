@@ -136,7 +136,7 @@ func applyWindowEffects(effects bool) {
 	// Windows 10.
 	if effects {
 		// ACCENT_ENABLE_ACRYLICBLURBEHIND (4); цвет ABGR: тёмно-синяя тонировка.
-		acc := accentPolicy{AccentState: 4, AccentFlags: 2, GradientColor: 0xB0140A07}
+		acc := accentPolicy{AccentState: 4, AccentFlags: 2, GradientColor: 0x7A140A07}
 		data := winCompAttrData{Attrib: 19, PvData: unsafe.Pointer(&acc), CbData: unsafe.Sizeof(acc)}
 		procSetWindowCompositionAttr.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&data)))
 	}
